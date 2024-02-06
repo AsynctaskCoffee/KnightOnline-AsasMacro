@@ -20,13 +20,14 @@ class KnightOnlineMacro:
                 if not caps_lock_state() != 0:
                     break
                 self.keyboard_controller.press(key)
-                time.sleep(0.1)
+                time.sleep(0.01)
                 self.keyboard_controller.release(key)
+                time.sleep(0.1)
                 for _ in range(2):
                     if not caps_lock_state() != 0:
                         break
                     self.keyboard_controller.press('r')
-                    time.sleep(0.1)
+                    time.sleep(0.01)
                     self.keyboard_controller.release('r')
             time.sleep(0.1)
             if not caps_lock_state() != 0:
@@ -36,19 +37,22 @@ class KnightOnlineMacro:
         while caps_lock_state() != 0:
             for minor_key in ['8', '9', '0', '9']:
                 self.keyboard_controller.press(minor_key)
-                time.sleep(0.1)
+                time.sleep(0.01)
                 self.keyboard_controller.release(minor_key)
 
-            time.sleep(0.1)
+            time.sleep(0.05)
 
             if not caps_lock_state() != 0:
                 break
 
     def on_press(self, key):
-        if not self.attack_thread.is_alive():
-            self.attack_thread.start()
-        if not self.minor_thread.is_alive():
-            self.minor_thread.start()
+        if key == keyboard.Key.caps_lock:  # Assuming you want to start the threads with caps lock
+            if not self.attack_thread.is_alive():
+                self.attack_thread = threading.Thread(target=self.attack, daemon=True)  # Create a new thread
+                self.attack_thread.start()
+            if not self.minor_thread.is_alive():
+                self.minor_thread = threading.Thread(target=self.minor, daemon=True)  # Create a new thread
+                self.minor_thread.start()
 
     def on_release(self, key):
         return
