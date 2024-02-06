@@ -22,13 +22,21 @@ class KnightOnlineMacro:
                 self.keyboard_controller.press(key)
                 time.sleep(0.01)
                 self.keyboard_controller.release(key)
-                time.sleep(0.1)
+                time.sleep(0.01)
                 for _ in range(2):
                     if not caps_lock_state() != 0:
                         break
                     self.keyboard_controller.press('r')
                     time.sleep(0.01)
                     self.keyboard_controller.release('r')
+                time.sleep(0.01)
+                self.keyboard_controller.press(key)
+                time.sleep(0.01)
+                self.keyboard_controller.release(key)
+                time.sleep(0.01)
+                self.keyboard_controller.press('r')
+                time.sleep(0.01)
+                self.keyboard_controller.release('r')
             time.sleep(0.1)
             if not caps_lock_state() != 0:
                 break
