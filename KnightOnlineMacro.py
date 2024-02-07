@@ -1,16 +1,23 @@
+import ctypes
 import threading
 import time
-import ctypes
-from pynput import keyboard
 import tkinter as tk
 from tkinter import ttk
+from pynput import keyboard
 
+import pyautogui
+import time
+import threading
+import ctypes
+from PIL import Image
+import pyautogui as py
 
 class KnightOnlineMacro:
     def __init__(self, root):
         self.root = root
         self.character_class = tk.StringVar()
         self.character_class.set("Asas")  # Varsayılan olarak Asas seçili
+        self.pot_thread = threading.Thread(target=self.hp_mp_bas, daemon=True)
         self.attack_thread = threading.Thread(target=self.attack, daemon=True)
         self.minor_thread = threading.Thread(target=self.minor, daemon=True)
         self.keyboard_controller = keyboard.Controller()
@@ -22,6 +29,26 @@ class KnightOnlineMacro:
 
         # Thread Initialization
         self.thread = None
+
+    hpx = 167
+    hpy = 46
+    mpx = 92
+    mpy = 60
+
+    def hp_mp_bas(self):
+        while self.caps_lock_state() != 0:
+            time.sleep(3)
+            canr, cang, canb, = py.pixel(self.hpx, self.hpy)
+            manar, manag, manab = py.pixel(self.mpx, self.mpy)
+
+            if canr < 10:
+                self.keyboard_controller.press('7')
+                time.sleep(0.03)
+                self.keyboard_controller.release('7')
+            if manab < 10:
+                self.keyboard_controller.press('8')
+                time.sleep(0.03)
+                self.keyboard_controller.release('8')
 
     def setup_gui(self):
         self.canvas = tk.Canvas(self.root, width=100, height=100)
@@ -98,6 +125,9 @@ class KnightOnlineMacro:
                 if not self.minor_thread.is_alive():
                     self.minor_thread = threading.Thread(target=self.minor, daemon=True)
                     self.minor_thread.start()
+            else:
+                self.pot_thread = threading.Thread(target=self.hp_mp_bas(), daemon=True)
+                self.pot_thread.start()
             if not self.attack_thread.is_alive():
                 self.attack_thread = threading.Thread(target=self.attack, daemon=True)
                 self.attack_thread.start()
@@ -119,7 +149,10 @@ class KnightOnlineMacro:
                 self.keyboard_controller.press(minor_key)
                 time.sleep(0.05)
                 self.keyboard_controller.release(minor_key)
-                time.sleep(0.3)
+                if minor_key == "w":
+                    time.sleep(0.1)
+                else:
+                    time.sleep(0.4)
             if not self.caps_lock_state() != 0:
                 break
 
