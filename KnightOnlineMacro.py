@@ -9,13 +9,21 @@ from tkinter import ttk
 class KnightOnlineMacro:
     def __init__(self, root):
         self.root = root
-        self.keyboard_controller = keyboard.Controller()
+        self.character_class = tk.StringVar()
+        self.character_class.set("Asas")  # Varsayılan olarak Asas seçili
         self.attack_thread = threading.Thread(target=self.attack, daemon=True)
         self.minor_thread = threading.Thread(target=self.minor, daemon=True)
-        self.listener_keyboard = keyboard.Listener(on_press=self.on_press, on_release=self.on_release)
+        self.keyboard_controller = keyboard.Controller()
+        self.listener_keyboard = keyboard.Listener(on_press=self.on_press)
         self.listener_keyboard.start()
 
         # GUI Components
+        self.setup_gui()
+
+        # Thread Initialization
+        self.thread = None
+
+    def setup_gui(self):
         self.canvas = tk.Canvas(self.root, width=100, height=100)
         self.circle = self.canvas.create_oval(20, 20, 80, 80, fill='red')  # Başlangıçta kırmızı
         self.canvas.pack()
@@ -25,10 +33,27 @@ class KnightOnlineMacro:
                                                    command=self.update_always_on_top)
         self.always_on_top_check.pack()
 
-        # Caps Lock durumunu sürekli kontrol et
+        # Character Class Radio Buttons
+        classes_frame = tk.Frame(self.root)
+        classes_frame.pack()
+        ttk.Radiobutton(classes_frame, text="Asas", variable=self.character_class, value="Asas").pack(side=tk.LEFT)
+        ttk.Radiobutton(classes_frame, text="BP/Warrior", variable=self.character_class, value="BP/Warrior").pack(
+            side=tk.LEFT)
+        ttk.Radiobutton(classes_frame, text="Okçu", variable=self.character_class, value="Okçu").pack(side=tk.LEFT)
+
         self.update_circle_color()
 
     def attack(self):
+        while self.caps_lock_state() != 0:
+            if self.character_class.get() == "Asas":
+                self.asas_attack()
+            elif self.character_class.get() == "BP/Warrior":
+                self.melee_attack()
+            elif self.character_class.get() == "Okçu":
+                self.archer_attack()
+            time.sleep(0.1)
+
+    def asas_attack(self):
         while self.caps_lock_state() != 0:
             skill_keys = ['1', '2', '3', '4', '5', '6', '7']
             for key in skill_keys:
@@ -69,12 +94,34 @@ class KnightOnlineMacro:
 
     def on_press(self, key):
         if key == keyboard.Key.caps_lock:
+            if self.character_class.get() == "Asas":
+                if not self.minor_thread.is_alive():
+                    self.minor_thread = threading.Thread(target=self.minor, daemon=True)
+                    self.minor_thread.start()
             if not self.attack_thread.is_alive():
                 self.attack_thread = threading.Thread(target=self.attack, daemon=True)
                 self.attack_thread.start()
-            if not self.minor_thread.is_alive():
-                self.minor_thread = threading.Thread(target=self.minor, daemon=True)
-                self.minor_thread.start()
+
+    def melee_attack(self):
+        while self.caps_lock_state() != 0:
+            for minor_key in ['2', '2', 'r', 'r']:
+                self.keyboard_controller.press(minor_key)
+                time.sleep(0.01)
+                self.keyboard_controller.release(minor_key)
+
+            time.sleep(0.05)
+            if not self.caps_lock_state() != 0:
+                break
+
+    def archer_attack(self):
+        while self.caps_lock_state() != 0:
+            for minor_key in ['2', 'w', '3', 'w']:
+                self.keyboard_controller.press(minor_key)
+                time.sleep(0.05)
+                self.keyboard_controller.release(minor_key)
+                time.sleep(0.3)
+            if not self.caps_lock_state() != 0:
+                break
 
     def on_release(self, key):
         pass
