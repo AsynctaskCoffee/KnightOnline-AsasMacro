@@ -125,8 +125,8 @@ class KnightOnlineMacro:
                 if not self.minor_thread.is_alive():
                     self.minor_thread = threading.Thread(target=self.minor, daemon=True)
                     self.minor_thread.start()
-            else:
-                self.pot_thread = threading.Thread(target=self.hp_mp_bas(), daemon=True)
+            elif not self.pot_thread.is_alive():
+                self.pot_thread = threading.Thread(target=self.hp_mp_bas, daemon=True)
                 self.pot_thread.start()
             if not self.attack_thread.is_alive():
                 self.attack_thread = threading.Thread(target=self.attack, daemon=True)
