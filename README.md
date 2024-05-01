@@ -14,7 +14,7 @@ Knight Online oyunu için tasarlanmış bu gelişmiş makro programı, oyuncular
 ### Kurulum ve Başlatma
 
 1. **Python Kurulumu:** Program, Python programlama dilinde yazılmıştır. Bilgisayarınızda Python'un yüklü olduğundan emin olun.
-2. **Gerekli Kütüphanelerin Kurulumu:** Programın çalışması için `pynput`, `pyautogui`, `tkinter`, `threading`, `time`, `ctypes`, ve `PIL` kütüphanelerinin yüklenmesi gerekmektedir. Bu kütüphaneleri yüklemek için terminal veya komut istemcisine `pip install pynput pyautogui Pillow` gibi komutlar yazabilirsiniz.
+2. **Gerekli Kütüphanelerin Kurulumu:** Programın çalışması için `pynput`, `pyautogui`, `tkinter`, `threading`, `time`, `ctypes`, ve `PIL` kütüphanelerinin yüklenmesi gerekmektedir. Bu kütüphaneleri yüklemek için terminal veya komut istemcisine `pip install pynput pyautogui Pillow` gibi komutlar yazabilirsiniz. Alternatif olarak sanal ortam yaratıp gerekli modülleri `pip install -r requirements.txt` komutuyla yükleyebilirsiniz. Program Windows işletim sistemini desteklemektedir.
 3. **Makro Kodunun Çalıştırılması:** Makro kodunu bir Python dosyasına yapıştırın ve Python yorumlayıcısı ile çalıştırın.
 
 ## Kullanım Talimatları
