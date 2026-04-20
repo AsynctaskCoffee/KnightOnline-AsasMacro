@@ -1,238 +1,278 @@
-"""
-Knight Online için yardımcı uygulama
-"""
+"""Knight Online için yardımcı uygulama."""
 import ctypes
 import threading
 import time
 import tkinter as tk
-from tkinter import ttk
+from tkinter import messagebox, ttk
+
 from pynput import keyboard
 import pyautogui as py
 
 
 class KnightOnlineMacro:
-    """Knight Online Macro için sınıf"""
+    """Knight Online Macro uygulaması."""
 
     def __init__(self, root):
-        """
-        KnightOnlineMacro sınıfının yapıcı yöntemi.
-
-        :param root: Tkinter kök penceresi.
-        """
         self.root = root
-        self.character_class = tk.StringVar()
-        self.character_class.set("Asas")  # Varsayılan olarak Asas seçili
-        self.pot_thread = threading.Thread(target=self.hp_mp_bas, daemon=True)
-        self.attack_thread = threading.Thread(target=self.attack, daemon=True)
-        self.minor_thread = threading.Thread(target=self.minor, daemon=True)
+        self.root.title("Knight Online Macro GUI")
+        self.root.geometry("430x480")
+
         self.keyboard_controller = keyboard.Controller()
         self.listener_keyboard = keyboard.Listener(on_press=self.on_press)
         self.listener_keyboard.start()
 
-        # GUI bileşenleri
-        self.setup_gui()
+        # Çalışma durumları
+        self.running = threading.Event()
+        self.stop_event = threading.Event()
 
-    hpx = 167
-    hpy = 46
-    mpx = 92
-    mpy = 60
+        # Thread referansları
+        self.attack_thread = None
+        self.pot_thread = None
+        self.minor_thread = None
+
+        # Seçimler
+        self.character_class = tk.StringVar(value="Asas")
+        self.always_on_top_var = tk.BooleanVar(value=True)
+
+        # HP/MP piksel ve tuş ayarları
+        self.hp_x = tk.IntVar(value=167)
+        self.hp_y = tk.IntVar(value=46)
+        self.mp_x = tk.IntVar(value=92)
+        self.mp_y = tk.IntVar(value=60)
+        self.hp_key = tk.StringVar(value="7")
+        self.mp_key = tk.StringVar(value="8")
+
+        self.setup_gui()
+        self.update_always_on_top()
+        self.update_circle_color()
+        self.sync_from_caps_lock()
+
+        self.root.protocol("WM_DELETE_WINDOW", self.on_close)
 
     @staticmethod
     def caps_lock_state():
-        """
-        Caps Lock durumunu kontrol eder.
-
-        :return: Caps Lock durumu (0 kapalı, 1 açık).
-        """
+        """Caps Lock durumunu döndürür."""
         hll_dll = ctypes.WinDLL("User32.dll")
-        vk_capital = 0x14
-        return hll_dll.GetKeyState(vk_capital)
-
-    def hp_mp_bas(self):
-        """
-        Otomatik olarak HP/MP basan fonksiyon.
-
-        """
-        while self.caps_lock_state() != 0:
-            time.sleep(3)
-            canr = py.pixel(self.hpx, self.hpy)
-            manab = py.pixel(self.mpx, self.mpy)
-
-            if canr < 10:
-                self.keyboard_controller.press('7')
-                time.sleep(0.03)
-                self.keyboard_controller.release('7')
-            if manab < 10:
-                self.keyboard_controller.press('8')
-                time.sleep(0.03)
-                self.keyboard_controller.release('8')
+        return hll_dll.GetKeyState(0x14)
 
     def setup_gui(self):
-        """
-        Arayüz bileşenlerini oluşturan fonksiyon.
+        """Arayüzü oluşturur."""
+        style = ttk.Style()
+        style.configure("Card.TLabelframe", padding=8)
 
-        """
-        self.canvas = tk.Canvas(self.root, width=100, height=100)
-        self.circle = self.canvas.create_oval(20, 20, 80, 80, fill='red')  # Başlangıçta kırmızı
-        self.canvas.pack()
+        main = ttk.Frame(self.root, padding=12)
+        main.pack(fill="both", expand=True)
 
-        self.always_on_top_var = tk.BooleanVar()
-        self.always_on_top_check = ttk.Checkbutton(self.root, text="Always on top",
-                                                   variable=self.always_on_top_var,
-                                                   command=self.update_always_on_top)
-        self.always_on_top_check.pack()
+        status_frame = ttk.LabelFrame(main, text="Durum", style="Card.TLabelframe")
+        status_frame.pack(fill="x", pady=(0, 8))
 
-        # Karakter Sınıfı Radyo Düğmeleri
-        classes_frame = tk.Frame(self.root)
-        classes_frame.pack()
-        ttk.Radiobutton(classes_frame, text="Asas",
-                        variable=self.character_class,
-                        value="Asas").pack(side=tk.LEFT)
-        ttk.Radiobutton(classes_frame, text="BP/Warrior",
-                        variable=self.character_class, value="BP/Warrior").pack(
-            side=tk.LEFT)
-        ttk.Radiobutton(classes_frame, text="Okçu",
-                        variable=self.character_class, value="Okçu").pack(side=tk.LEFT)
-        self.update_circle_color()
+        self.canvas = tk.Canvas(status_frame, width=42, height=42, highlightthickness=0)
+        self.circle = self.canvas.create_oval(4, 4, 38, 38, fill="red")
+        self.canvas.pack(side="left", padx=(0, 8))
 
-    def attack(self):
-        """
-        Atak fonksiyonu.
+        self.status_label = ttk.Label(status_frame, text="Macro Pasif (Caps Lock: OFF)")
+        self.status_label.pack(side="left", anchor="w")
 
-        """
-        while self.caps_lock_state() != 0:
-            if self.character_class.get() == "Asas":
-                self.asas_attack()
-            elif self.character_class.get() == "BP/Warrior":
-                self.melee_attack()
-            elif self.character_class.get() == "Okçu":
-                self.archer_attack()
-            time.sleep(0.1)
+        options_frame = ttk.LabelFrame(main, text="Genel", style="Card.TLabelframe")
+        options_frame.pack(fill="x", pady=8)
 
-    def asas_attack(self):
-        """
-        Asasın atak fonksiyonu.
+        ttk.Checkbutton(
+            options_frame,
+            text="Her zaman üstte",
+            variable=self.always_on_top_var,
+            command=self.update_always_on_top,
+        ).pack(anchor="w")
 
-        """
-        while self.caps_lock_state() != 0:
-            skill_keys = ['1', '2', '3', '4', '5', '6', '7']
-            for key in skill_keys:
-                if not self.caps_lock_state() != 0:
-                    break
-                self.keyboard_controller.press(key)
-                time.sleep(0.01)
-                self.keyboard_controller.release(key)
-                time.sleep(0.01)
-                for _ in range(2):
-                    if not self.caps_lock_state() != 0:
-                        break
-                    self.keyboard_controller.press('r')
-                    time.sleep(0.01)
-                    self.keyboard_controller.release('r')
-                time.sleep(0.01)
-                self.keyboard_controller.press(key)
-                time.sleep(0.01)
-                self.keyboard_controller.release(key)
-                time.sleep(0.01)
-                self.keyboard_controller.press('r')
-                time.sleep(0.01)
-                self.keyboard_controller.release('r')
-            time.sleep(0.1)
-            if not self.caps_lock_state() != 0:
-                break
+        ttk.Label(options_frame, text="Job Seçimi:").pack(anchor="w", pady=(8, 0))
+        class_row = ttk.Frame(options_frame)
+        class_row.pack(fill="x", pady=(4, 0))
+        ttk.Radiobutton(class_row, text="Asas", variable=self.character_class, value="Asas").pack(side="left")
+        ttk.Radiobutton(class_row, text="BP/Warrior", variable=self.character_class, value="BP/Warrior").pack(side="left", padx=8)
+        ttk.Radiobutton(class_row, text="Okçu", variable=self.character_class, value="Okçu").pack(side="left")
 
-    def minor(self):
-        """
-        Minor fonksiyonu.
+        pot_frame = ttk.LabelFrame(main, text="HP / MP Ayarları", style="Card.TLabelframe")
+        pot_frame.pack(fill="x", pady=8)
 
-        """
-        while self.caps_lock_state() != 0:
-            for minor_key in ['8', '9', '0', '9']:
-                self.keyboard_controller.press(minor_key)
-                time.sleep(0.01)
-                self.keyboard_controller.release(minor_key)
+        grid = ttk.Frame(pot_frame)
+        grid.pack(fill="x")
 
-            time.sleep(0.05)
-            if not self.caps_lock_state() != 0:
-                break
+        ttk.Label(grid, text="HP X").grid(row=0, column=0, sticky="w")
+        ttk.Entry(grid, textvariable=self.hp_x, width=7).grid(row=0, column=1, padx=4)
+        ttk.Label(grid, text="HP Y").grid(row=0, column=2, sticky="w")
+        ttk.Entry(grid, textvariable=self.hp_y, width=7).grid(row=0, column=3, padx=4)
+        ttk.Label(grid, text="HP Tuş").grid(row=0, column=4, sticky="w")
+        ttk.Entry(grid, textvariable=self.hp_key, width=7).grid(row=0, column=5, padx=4)
 
-    def on_press(self, key):
-        """
-        Klavye basıldığında çağrılır.
+        ttk.Label(grid, text="MP X").grid(row=1, column=0, sticky="w", pady=(6, 0))
+        ttk.Entry(grid, textvariable=self.mp_x, width=7).grid(row=1, column=1, padx=4, pady=(6, 0))
+        ttk.Label(grid, text="MP Y").grid(row=1, column=2, sticky="w", pady=(6, 0))
+        ttk.Entry(grid, textvariable=self.mp_y, width=7).grid(row=1, column=3, padx=4, pady=(6, 0))
+        ttk.Label(grid, text="MP Tuş").grid(row=1, column=4, sticky="w", pady=(6, 0))
+        ttk.Entry(grid, textvariable=self.mp_key, width=7).grid(row=1, column=5, padx=4, pady=(6, 0))
 
-        :param key: Basılan tuş.
-        """
-        if key == keyboard.Key.caps_lock:
-            if self.character_class.get() == "Asas":
-                if not self.minor_thread.is_alive():
-                    self.minor_thread = threading.Thread(target=self.minor, daemon=True)
-                    self.minor_thread.start()
-            elif not self.pot_thread.is_alive():
-                self.pot_thread = threading.Thread(target=self.hp_mp_bas, daemon=True)
-                self.pot_thread.start()
-            if not self.attack_thread.is_alive():
-                self.attack_thread = threading.Thread(target=self.attack, daemon=True)
-                self.attack_thread.start()
+        capture_row = ttk.Frame(pot_frame)
+        capture_row.pack(fill="x", pady=(8, 0))
 
-    def melee_attack(self):
-        """
-        Yakın dövüş saldırısı fonksiyonu.
+        ttk.Button(capture_row, text="HP Pikseli Mouse'dan Al", command=self.capture_hp_pixel).pack(side="left")
+        ttk.Button(capture_row, text="MP Pikseli Mouse'dan Al", command=self.capture_mp_pixel).pack(side="left", padx=8)
 
-        """
-        while self.caps_lock_state() != 0:
-            for minor_key in ['2', '2', 'r', 'r']:
-                self.keyboard_controller.press(minor_key)
-                time.sleep(0.01)
-                self.keyboard_controller.release(minor_key)
-
-            time.sleep(0.05)
-            if not self.caps_lock_state() != 0:
-                break
-
-    def archer_attack(self):
-        """
-        Okçu saldırısı fonksiyonu.
-
-        """
-        while self.caps_lock_state() != 0:
-            for minor_key in ['2', 'w', '3', 'w']:
-                self.keyboard_controller.press(minor_key)
-                time.sleep(0.05)
-                self.keyboard_controller.release(minor_key)
-                if minor_key == "w":
-                    time.sleep(0.1)
-                else:
-                    time.sleep(0.4)
-            if not self.caps_lock_state() != 0:
-                break
-
-    def on_release(self, key):
-        """
-        Tuş bırakıldığında çağrılır.
-
-        :param key: Bırakılan tuş.
-        """
-        pass
-
-    def update_circle_color(self):
-        """Daire rengini günceller."""
-        if self.caps_lock_state() != 0:
-            self.canvas.itemconfig(self.circle, fill='green')
-        else:
-            self.canvas.itemconfig(self.circle, fill='red')
-        self.root.after(100, self.update_circle_color)
+        ttk.Label(
+            main,
+            text="Caps Lock ON => Macro başlar | Caps Lock OFF => Macro durur",
+            foreground="#666",
+        ).pack(anchor="w", pady=(10, 0))
 
     def update_always_on_top(self):
-        """Pencerenin daima en üstte olup olmadığını günceller."""
-        if self.always_on_top_var.get():
-            self.root.attributes('-topmost', 1)
+        self.root.attributes("-topmost", 1 if self.always_on_top_var.get() else 0)
+
+    def update_circle_color(self):
+        running = self.running.is_set()
+        self.canvas.itemconfig(self.circle, fill="green" if running else "red")
+        self.status_label.config(
+            text=f"Macro {'Aktif' if running else 'Pasif'} (Caps Lock: {'ON' if self.caps_lock_state() else 'OFF'})"
+        )
+        self.root.after(100, self.update_circle_color)
+
+    def sync_from_caps_lock(self):
+        """Caps Lock durumuna göre threadleri başlatır/durdurur."""
+        if self.caps_lock_state() != 0:
+            self.start_macro()
         else:
-            self.root.attributes('-topmost', 0)
+            self.stop_macro()
+        self.root.after(250, self.sync_from_caps_lock)
+
+    def on_press(self, key):
+        if key == keyboard.Key.caps_lock:
+            # Donanım tuşu ile manuel toggle sonrası hızlı senkron
+            self.root.after(50, self.sync_from_caps_lock)
+
+    def start_macro(self):
+        if self.running.is_set():
+            return
+        self.running.set()
+        self.stop_event.clear()
+
+        self.attack_thread = threading.Thread(target=self.attack_loop, daemon=True)
+        self.attack_thread.start()
+
+        self.pot_thread = threading.Thread(target=self.hp_mp_bas, daemon=True)
+        self.pot_thread.start()
+
+        if self.character_class.get() == "Asas":
+            self.minor_thread = threading.Thread(target=self.minor, daemon=True)
+            self.minor_thread.start()
+
+    def stop_macro(self):
+        if not self.running.is_set():
+            return
+        self.running.clear()
+        self.stop_event.set()
+
+    def on_close(self):
+        self.stop_macro()
+        self.listener_keyboard.stop()
+        self.root.destroy()
+
+    def read_pixel_intensity(self, x, y):
+        pixel = py.pixel(x, y)
+        return pixel[0] if isinstance(pixel, tuple) else pixel
+
+    def hp_mp_bas(self):
+        while self.running.is_set() and not self.stop_event.is_set():
+            time.sleep(0.2)
+            try:
+                can_r = self.read_pixel_intensity(self.hp_x.get(), self.hp_y.get())
+                mana_b = self.read_pixel_intensity(self.mp_x.get(), self.mp_y.get())
+            except Exception:
+                continue
+
+            hp_key = self.hp_key.get().strip()[:1]
+            mp_key = self.mp_key.get().strip()[:1]
+
+            if hp_key and can_r < 10:
+                self.press_key(hp_key)
+            if mp_key and mana_b < 10:
+                self.press_key(mp_key)
+
+    def attack_loop(self):
+        while self.running.is_set() and not self.stop_event.is_set():
+            character = self.character_class.get()
+            if character == "Asas":
+                self.asas_attack_cycle()
+            elif character == "BP/Warrior":
+                self.melee_attack_cycle()
+            elif character == "Okçu":
+                self.archer_attack_cycle()
+            time.sleep(0.05)
+
+    def press_key(self, key_value, hold=0.01):
+        if not self.running.is_set() or self.stop_event.is_set():
+            return
+        self.keyboard_controller.press(key_value)
+        time.sleep(hold)
+        self.keyboard_controller.release(key_value)
+
+    # Aşağıdaki saldırı sıraları mevcut davranış bozulmasın diye korunmuştur.
+    def asas_attack_cycle(self):
+        skill_keys = ["1", "2", "3", "4", "5", "6", "7"]
+        for key in skill_keys:
+            if not self.running.is_set() or self.stop_event.is_set() or self.character_class.get() != "Asas":
+                return
+            self.press_key(key)
+            time.sleep(0.01)
+            for _ in range(2):
+                if not self.running.is_set() or self.stop_event.is_set() or self.character_class.get() != "Asas":
+                    return
+                self.press_key("r")
+            time.sleep(0.01)
+            self.press_key(key)
+            time.sleep(0.01)
+            self.press_key("r")
+        time.sleep(0.1)
+
+    def melee_attack_cycle(self):
+        for key in ["2", "2", "r", "r"]:
+            if not self.running.is_set() or self.stop_event.is_set() or self.character_class.get() != "BP/Warrior":
+                return
+            self.press_key(key)
+        time.sleep(0.05)
+
+    def archer_attack_cycle(self):
+        for key in ["2", "w", "3", "w"]:
+            if not self.running.is_set() or self.stop_event.is_set() or self.character_class.get() != "Okçu":
+                return
+            self.press_key(key, hold=0.05)
+            time.sleep(0.1 if key == "w" else 0.4)
+
+    def minor(self):
+        while self.running.is_set() and not self.stop_event.is_set() and self.character_class.get() == "Asas":
+            for minor_key in ["8", "9", "0", "9"]:
+                if not self.running.is_set() or self.stop_event.is_set() or self.character_class.get() != "Asas":
+                    return
+                self.press_key(minor_key)
+            time.sleep(0.05)
+
+    def capture_hp_pixel(self):
+        self.capture_pixel(self.hp_x, self.hp_y, "HP")
+
+    def capture_mp_pixel(self):
+        self.capture_pixel(self.mp_x, self.mp_y, "MP")
+
+    def capture_pixel(self, x_var, y_var, name):
+        self.root.iconify()
+        messagebox.showinfo(
+            "Piksel Seçimi",
+            f"{name} için mouse imlecini hedef bara getir. 2 saniye sonra konum alınacak.",
+        )
+        time.sleep(2)
+        x, y = py.position()
+        x_var.set(int(x))
+        y_var.set(int(y))
+        self.root.deiconify()
+        self.root.lift()
 
 
 if __name__ == "__main__":
     root = tk.Tk()
-    root.title("Knight Online Macro GUI")
-    root.geometry("200x150")  # Pencere boyutunu ayarla
-    app = KnightOnlineMacro(root)
+    KnightOnlineMacro(root)
     root.mainloop()
